@@ -2,11 +2,11 @@ use std::cmp::Ordering;
 
 pub mod feeds;
 
-pub type HexSize = u32;
-pub type ValIndex = u32;
-pub type IHexSize = i32;
+pub type HexSize = u64;
+pub type ValIndex = u64;
+pub type IHexSize = i64;
 
-pub const HEX_MEM_SIZE: u32 = 0xFFFFF;
+pub const HEX_MEM_SIZE: HexSize = 0xFFFF;
 pub const MEM_SIZE: usize = HEX_MEM_SIZE as usize;
 
 pub enum JmpKind {
@@ -122,11 +122,15 @@ impl<'a> HexVm<'a> {
             Div(value) => self.reg.ax = self.math(self.reg.ax, self.value(value), Op::Div),
             Mod(value) => self.reg.ax = self.math(self.reg.ax, self.value(value), Op::Mod),
             // TODO: create actual printing system
-            Str(s) => s.as_bytes().chunks(4).rev().for_each(|b| {
-                let mut o = [0; 4];
-                o[..b.len()].copy_from_slice(b);
-                push(&mut self.reg.sp, &mut self.mem, HexSize::from_be_bytes(o));
-            }),
+            Str(s) => s
+                .as_bytes()
+                .chunks(HexSize::BITS as usize / 8)
+                .rev()
+                .for_each(|b| {
+                    let mut o = [0; HexSize::BITS as usize / 8];
+                    o[..b.len()].copy_from_slice(b);
+                    push(&mut self.reg.sp, &mut self.mem, HexSize::from_be_bytes(o));
+                }),
             Print(add, len) => {
                 let start = self.address(add);
                 let s = String::from_utf8(
@@ -281,7 +285,7 @@ impl<'a> HexVm<'a> {
             //         Sub => l - r,
             //         Div => l / r,
             //         Mul => l * r,
-            //         Pow => l.pow(r as u32),
+            //         Pow => l.pow(r as HexSize),
             //         Mod => l % r,
             //     }
             // }
@@ -384,14 +388,6 @@ pub enum Op {
     Mod,
 }
 
-pub fn stack(add: HexSize) -> Address {
-    Address::Stack(add)
-}
-
-pub fn register(reg: Register, deref: bool) -> Address {
-    Address::Register(reg, deref)
-}
-
 impl From<Register> for Address {
     fn from(value: Register) -> Self {
         Self::Register(value, false)
@@ -417,7 +413,7 @@ fn push(sp: &mut HexSize, mem: &mut [HexSize], word: HexSize) {
 
 fn pop(sp: &mut HexSize, mem: &mut [HexSize]) -> HexSize {
     let val = mem[*sp as usize];
-    *sp -= 1;
+    *sp += 1;
     val
 }
 
@@ -426,3 +422,22 @@ fn copy_words(i: HexSize, mem: &mut [HexSize], words: &[HexSize]) {
     let i = i as usize;
     mem[i..i + words.len()].copy_from_slice(words);
 }
+
+pub fn mem(add: HexSize) -> Address {
+    Address::Stack(add)
+}
+
+#[macro_export]
+macro_rules! reg {
+    ($reg:ident) => {
+        reg!($reg, false)
+    };
+    ($reg:ident, $drf:expr) => {
+        $crate::Address::Register($reg, $drf).into()
+    };
+}
+
+// pub(crate) use reg;
+// pub fn reg(reg: Register, deref: bool) -> Address {
+//     Address::Register(reg, deref)
+// }

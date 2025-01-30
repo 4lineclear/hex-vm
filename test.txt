@@ -1,0 +1,17 @@
+775121
+RegisterSet {
+    ax: 1,
+    bx: 775121,
+    cx: 775121,
+    dx: 0,
+    si: 0,
+    di: 0,
+    sp: 1048575,
+    bp: 1048575,
+    ip: 100,
+} FlagSet {
+    sf: false,
+    cf: false,
+    zf: true,
+    of: false,
+}
