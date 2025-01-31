@@ -112,7 +112,10 @@ impl HexVm {
         let seq = self.seq[self.reg.ip as usize];
         match seq {
             Mov(add, value) => *self.address_mut(add) = self.value(value),
-            Cmp(a, b) => self.flg.do_cmp(self.value(a), self.value(b)),
+            Cmp(a, b) => {
+                // tracing::info!("{:?} cmp {:?}", self.value(a), self.value(b));
+                self.flg.do_cmp(self.value(a), self.value(b))
+            }
             Jmp(add) => self.jump_ord(add, JmpKind::Jmp),
             Je(add) => self.jump_ord(add, JmpKind::Je),
             Jne(add) => self.jump_ord(add, JmpKind::Jne),
@@ -120,6 +123,13 @@ impl HexVm {
             Jle(add) => self.jump_ord(add, JmpKind::Jle),
             Jg(add) => self.jump_ord(add, JmpKind::Jg),
             Jge(add) => self.jump_ord(add, JmpKind::Jge),
+            Call(sym) => {
+                push(&mut self.reg.sp, &mut self.mem, self.reg.ip);
+                self.reg.ip = self.labels.get(&sym).copied().unwrap();
+            }
+            Ret => {
+                self.reg.ip = pop(&mut self.reg.sp, &mut self.mem);
+            }
             Push(value) => {
                 let word = self.value(value);
                 push(&mut self.reg.sp, &mut self.mem, word);
@@ -336,6 +346,8 @@ pub enum Sequence {
     Jle(Value),
     Jg(Value),
     Jge(Value),
+    Call(DefaultSymbol),
+    Ret,
     Push(Value),
     Pop(Address),
     // TODO: add bit operators: xor, and, or

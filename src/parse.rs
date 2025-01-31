@@ -81,6 +81,18 @@ impl<L: Lexer, S: AsRef<str>> Parser<L, S> {
             "jle" => Some(Sequence::Jle(self.expect_value_ext())),
             "jg" => Some(Sequence::Jg(self.expect_value_ext())),
             "jge" => Some(Sequence::Jge(self.expect_value_ext())),
+            "call" => {
+                let ad = self.non_ws();
+                let Ident = ad.lex else {
+                    self.unexpected(ad);
+                };
+                self.kill_line();
+                Some(Sequence::Call(self.symbol(ad.span)))
+            }
+            "ret" => {
+                self.kill_line();
+                Some(Sequence::Ret)
+            }
             "mul" => Some(Sequence::Mul(self.expect_value())),
             "div" => Some(Sequence::Div(self.expect_value())),
             "mod" => Some(Sequence::Mod(self.expect_value())),
@@ -92,36 +104,42 @@ impl<L: Lexer, S: AsRef<str>> Parser<L, S> {
                 let Str = ad.lex else {
                     self.unexpected(ad);
                 };
+                self.kill_line();
                 Some(Sequence::Str(self.symbol(ad.span)))
             }
             "mov" => {
                 let address = self.expect_address();
                 self.expect_comma();
                 let val = self.expect_value();
+                self.kill_line();
                 Some(Sequence::Mov(address, val))
             }
             "cmp" => {
                 let v1 = self.expect_value();
                 self.expect_comma();
                 let v2 = self.expect_value();
+                self.kill_line();
                 Some(Sequence::Cmp(v1, v2))
             }
             "add" => {
                 let address = self.expect_address();
                 self.expect_comma();
                 let val = self.expect_value();
+                self.kill_line();
                 Some(Sequence::Add(address, val))
             }
             "sub" => {
                 let address = self.expect_address();
                 self.expect_comma();
                 let val = self.expect_value();
+                self.kill_line();
                 Some(Sequence::Sub(address, val))
             }
             "print" => {
                 let address = self.expect_address();
                 self.expect_comma();
                 let hex = self.expect_hex();
+                self.kill_line();
                 Some(Sequence::Print(address, hex))
             }
             s => panic!("invalid instruction: {s}"),
