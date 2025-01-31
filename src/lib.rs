@@ -1,4 +1,7 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
+
+use string_interner::{DefaultStringInterner, DefaultSymbol};
 
 pub mod feeds;
 
@@ -8,6 +11,10 @@ pub type IHexSize = i64;
 
 pub const HEX_MEM_SIZE: HexSize = 0xFFFF;
 pub const MEM_SIZE: usize = HEX_MEM_SIZE as usize;
+
+pub mod lex;
+pub mod parse;
+pub mod span;
 
 pub enum JmpKind {
     Jmp,
@@ -19,7 +26,7 @@ pub enum JmpKind {
     Jge,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct FlagSet {
     pub sf: bool,
     pub cf: bool,
@@ -61,17 +68,24 @@ impl FlagSet {
     // }
 }
 
-#[derive(Debug)]
-pub struct HexVm<'a> {
+#[derive(Debug, PartialEq, Eq)]
+pub struct HexVm {
+    pub si: DefaultStringInterner,
+    pub labels: HashMap<DefaultSymbol, HexSize>,
     pub flg: FlagSet,
     pub reg: RegisterSet,
-    pub seq: Vec<Sequence<'a>>,
+    pub seq: Vec<Sequence>,
     pub mem: [HexSize; MEM_SIZE],
 }
 
-impl<'a> HexVm<'a> {
-    pub fn new(seq: impl Into<Vec<Sequence<'a>>>) -> Self {
+impl HexVm {
+    pub fn new(
+        seq: impl Into<Vec<Sequence>>,
+        labels: impl Into<HashMap<DefaultSymbol, HexSize>>,
+    ) -> Self {
         Self {
+            si: DefaultStringInterner::new(),
+            labels: labels.into(),
             flg: FlagSet::default(),
             reg: RegisterSet {
                 bp: HEX_MEM_SIZE,
@@ -122,7 +136,10 @@ impl<'a> HexVm<'a> {
             Div(value) => self.reg.ax = self.math(self.reg.ax, self.value(value), Op::Div),
             Mod(value) => self.reg.ax = self.math(self.reg.ax, self.value(value), Op::Mod),
             // TODO: create actual printing system
-            Str(s) => s
+            Str(s) => self
+                .si
+                .resolve(s)
+                .unwrap()
                 .as_bytes()
                 .chunks(HexSize::BITS as usize / 8)
                 .rev()
@@ -258,6 +275,7 @@ impl<'a> HexVm<'a> {
             Register(r, d) if d => self.mem_at(self.reg(r)),
             Register(r, _) => self.reg(r),
             Stack(add) => self.mem_at(add),
+            Ident(sym) => self.labels.get(&sym).copied().unwrap(),
         }
     }
 
@@ -267,6 +285,7 @@ impl<'a> HexVm<'a> {
             Register(r, d) if d => self.mem_mut(self.reg(r)),
             Register(r, _) => self.reg_mut(r),
             Stack(add) => self.mem_mut(add),
+            Ident(sym) => self.labels.get_mut(&sym).unwrap(),
         }
     }
 
@@ -293,7 +312,7 @@ impl<'a> HexVm<'a> {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct RegisterSet {
     pub ax: HexSize,
     pub bx: HexSize,
@@ -306,8 +325,8 @@ pub struct RegisterSet {
     pub ip: HexSize,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Sequence<'a> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sequence {
     Mov(Address, Value),
     Cmp(Value, Value),
     Jmp(Value),
@@ -328,12 +347,13 @@ pub enum Sequence<'a> {
     Div(Value),
     Mod(Value),
     // Pow(Value),
-    Str(&'a str),
+    Str(DefaultSymbol),
     Print(Address, HexSize),
     // Dyn      = allocate  dynamic
     // Down     = delete    dynamic
 }
-impl Sequence<'_> {
+
+impl Sequence {
     pub fn is_jump(&self) -> bool {
         use Sequence::*;
         matches!(
@@ -343,21 +363,21 @@ impl Sequence<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Address {
     Register(Register, bool),
     Stack(HexSize),
+    Ident(DefaultSymbol),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Value {
     Address(Address),
     Hex(HexSize),
     IHex(IHexSize),
-    // Expr(HexSize, Op, HexSize),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Register {
     /// accumulator, volatile, return value
     Ax,
@@ -407,11 +427,17 @@ impl From<Address> for Value {
 }
 
 fn push(sp: &mut HexSize, mem: &mut [HexSize], word: HexSize) {
+    if *sp == 0 {
+        panic!("used entire available memory; underflow.")
+    }
     *sp -= 1;
     mem[*sp as usize] = word;
 }
 
 fn pop(sp: &mut HexSize, mem: &mut [HexSize]) -> HexSize {
+    if *sp >= HEX_MEM_SIZE {
+        panic!("used entire available memory; overflow.")
+    }
     let val = mem[*sp as usize];
     *sp += 1;
     val
@@ -429,10 +455,10 @@ pub fn mem(add: HexSize) -> Address {
 
 #[macro_export]
 macro_rules! reg {
-    ($reg:ident) => {
+    ($reg:expr) => {
         reg!($reg, false)
     };
-    ($reg:ident, $drf:expr) => {
+    ($reg:expr, $drf:expr) => {
         $crate::Address::Register($reg, $drf).into()
     };
 }

@@ -5,7 +5,7 @@ use crate::Sequence;
 
 // NOTE: pe = project euler
 
-pub fn pe1<'a>() -> impl Into<Vec<Sequence<'a>>> {
+pub fn pe1() -> impl Into<Vec<Sequence>> {
     [
         Mov(reg!(Ax), Hex(0)),
         Mov(reg!(Cx), Hex(0)),
@@ -26,7 +26,7 @@ pub fn pe1<'a>() -> impl Into<Vec<Sequence<'a>>> {
     ]
 }
 
-pub fn pe2<'a>() -> impl Into<Vec<Sequence<'a>>> {
+pub fn pe2() -> impl Into<Vec<Sequence>> {
     [
         Mov(reg!(Dx), Hex(2)),
         Push(Hex(1)),
@@ -53,7 +53,7 @@ pub fn pe2<'a>() -> impl Into<Vec<Sequence<'a>>> {
 }
 
 // NOTE: answer written in register cx
-pub fn pe3<'a>() -> impl Into<Vec<Sequence<'a>>> {
+pub fn pe3() -> impl Into<Vec<Sequence>> {
     [
         Mov(reg!(Cx), Hex(600_851_475_143)),
         Mov(reg!(Bx), Hex(2)),
