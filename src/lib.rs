@@ -155,10 +155,20 @@ impl HexVm {
                     o[..b.len()].copy_from_slice(b);
                     push(&mut self.reg.sp, &mut self.mem, HexSize::from_be_bytes(o));
                 }),
+            Sparse(s) => self
+                .si
+                .resolve(s)
+                .unwrap()
+                .as_bytes()
+                .iter()
+                .rev()
+                .for_each(|&b| {
+                    push(&mut self.reg.sp, &mut self.mem, b as HexSize);
+                }),
             Print(add, len) => {
                 let start = self.address(add);
                 let s = String::from_utf8(
-                    self.mem[start as usize..start as usize + (len as usize + 1) / 2]
+                    self.mem[start as usize..start as usize + (len as usize).div_ceil(8)]
                         .iter()
                         .flat_map(|&ch| ch.to_be_bytes())
                         .take(len as usize)
@@ -357,6 +367,7 @@ pub enum Sequence {
     Mod(Value),
     // Pow(Value),
     Str(DefaultSymbol),
+    Sparse(DefaultSymbol),
     Print(Address, HexSize),
     // Dyn      = allocate  dynamic
     // Down     = delete    dynamic

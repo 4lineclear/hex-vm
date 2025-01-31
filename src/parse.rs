@@ -107,7 +107,19 @@ impl<L: Lexer, S: AsRef<str>> Parser<L, S> {
                     self.unexpected(ad);
                 };
                 self.kill_line();
-                Some(Sequence::Str(self.symbol(ad.span)))
+                Some(Sequence::Str(
+                    self.symbol((ad.span.from + 1, ad.span.to - 1)),
+                ))
+            }
+            "sparse" => {
+                let ad = self.non_ws();
+                let Str = ad.lex else {
+                    self.unexpected(ad);
+                };
+                self.kill_line();
+                Some(Sequence::Sparse(
+                    self.symbol((ad.span.from + 1, ad.span.to - 1)),
+                ))
             }
             "mov" => {
                 let address = self.expect_address();
