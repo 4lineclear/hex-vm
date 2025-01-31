@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use ahash::AHashMap;
 use string_interner::{DefaultStringInterner, DefaultSymbol};
 
 use crate::{
@@ -18,7 +17,7 @@ pub struct Parser<L, S> {
     pub src: S,
     pub lexer: L,
     pub seq: Vec<Sequence>,
-    pub labels: HashMap<DefaultSymbol, HexSize>,
+    pub labels: AHashMap<DefaultSymbol, HexSize>,
 }
 
 impl<'a> Parser<BaseLexer<'a>, &'a str> {

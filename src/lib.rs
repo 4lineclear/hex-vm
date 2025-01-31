@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
 
+use ahash::AHashMap;
 use string_interner::{DefaultStringInterner, DefaultSymbol};
 
 pub mod feeds;
@@ -71,7 +71,7 @@ impl FlagSet {
 #[derive(Debug, PartialEq, Eq)]
 pub struct HexVm {
     pub si: DefaultStringInterner,
-    pub labels: HashMap<DefaultSymbol, HexSize>,
+    pub labels: AHashMap<DefaultSymbol, HexSize>,
     pub flg: FlagSet,
     pub reg: RegisterSet,
     pub seq: Vec<Sequence>,
@@ -81,7 +81,7 @@ pub struct HexVm {
 impl HexVm {
     pub fn new(
         seq: impl Into<Vec<Sequence>>,
-        labels: impl Into<HashMap<DefaultSymbol, HexSize>>,
+        labels: impl Into<AHashMap<DefaultSymbol, HexSize>>,
     ) -> Self {
         Self {
             si: DefaultStringInterner::new(),
@@ -112,10 +112,7 @@ impl HexVm {
         let seq = self.seq[self.reg.ip as usize];
         match seq {
             Mov(add, value) => *self.address_mut(add) = self.value(value),
-            Cmp(a, b) => {
-                // tracing::info!("{:?} cmp {:?}", self.value(a), self.value(b));
-                self.flg.do_cmp(self.value(a), self.value(b))
-            }
+            Cmp(a, b) => self.flg.do_cmp(self.value(a), self.value(b)),
             Jmp(add) => self.jump_ord(add, JmpKind::Jmp),
             Je(add) => self.jump_ord(add, JmpKind::Je),
             Jne(add) => self.jump_ord(add, JmpKind::Jne),
@@ -124,7 +121,7 @@ impl HexVm {
             Jg(add) => self.jump_ord(add, JmpKind::Jg),
             Jge(add) => self.jump_ord(add, JmpKind::Jge),
             Call(sym) => {
-                push(&mut self.reg.sp, &mut self.mem, self.reg.ip);
+                push(&mut self.reg.sp, &mut self.mem, self.reg.ip + 1);
                 self.reg.ip = self.labels.get(&sym).copied().unwrap();
             }
             Ret => {
@@ -171,11 +168,11 @@ impl HexVm {
                 print!("{s}");
             }
         }
-        // tracing::info!("exec {}", self.reg.ip);
-        // tracing::info!("{seq:?}");
-        // tracing::info!("{:?}", self.reg);
-        // tracing::info!("{:?}", self.flg);
-        // tracing::info!("end  {}, mid-change {}", self.reg.ip, (old != self.reg.ip));
+        tracing::info!("exec {}", self.reg.ip);
+        tracing::info!("{seq:?}");
+        tracing::info!("{:?}", self.reg);
+        tracing::info!("{:?}", self.flg);
+        tracing::info!("end  {}, mid-change {}", self.reg.ip, (old != self.reg.ip));
         self.reg.ip += (old == self.reg.ip) as HexSize;
     }
 
