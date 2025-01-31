@@ -9,7 +9,7 @@ pub type HexSize = u64;
 pub type ValIndex = u64;
 pub type IHexSize = i64;
 
-pub const HEX_MEM_SIZE: HexSize = 0xFFFF;
+pub const HEX_MEM_SIZE: HexSize = 0xEEEE;
 pub const MEM_SIZE: usize = HEX_MEM_SIZE as usize;
 
 pub mod lex;

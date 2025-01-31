@@ -34,7 +34,10 @@ impl<'a> Parser<BaseLexer<'a>, &'a str> {
 impl<L: Lexer, S: AsRef<str>> Parser<L, S> {
     pub fn parse(mut self) -> HexVm {
         self.parse_inner();
-        HexVm::new(self.seq, self.labels)
+        HexVm {
+            si: self.si,
+            ..HexVm::new(self.seq, self.labels)
+        }
     }
 
     fn parse_inner(&mut self) {
